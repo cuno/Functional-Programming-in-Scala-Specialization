@@ -12,6 +12,10 @@ src_managed/
 project/boot/
 project/plugins/project/
 
+# Exercise specific
+Big Data Analysis with Scala and Spark/week1/wikipedia/src/main/resources/wikipedia/*.dat
+
+
 # Scala-IDE specific
 .scala_dependencies
 .worksheet
