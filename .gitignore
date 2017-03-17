@@ -14,6 +14,8 @@ project/plugins/project/
 
 # Exercise specific
 Big Data Analysis with Scala and Spark/week1/wikipedia/src/main/resources/wikipedia/*.dat
+Big Data Analysis with Scala and Spark/week1/wikipedia/src/main/resources/stackoverflow/stackoverflow.csv
+stackoverflow.csv
 
 
 # Scala-IDE specific
