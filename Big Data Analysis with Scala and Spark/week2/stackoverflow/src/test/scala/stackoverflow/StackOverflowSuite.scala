@@ -1,19 +1,11 @@
 package stackoverflow
 
-import org.scalatest.{FunSuite, BeforeAndAfterAll}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd.RDD
-import java.net.URL
-import java.nio.channels.Channels
-import java.io.File
-import java.io.FileOutputStream
+import org.scalatest.{BeforeAndAfterAll, FunSuite, ShouldMatchers}
 
 @RunWith(classOf[JUnitRunner])
-class StackOverflowSuite extends FunSuite with BeforeAndAfterAll {
+class StackOverflowSuite extends FunSuite with BeforeAndAfterAll with ShouldMatchers{
 
 
   lazy val testObject = new StackOverflow {
@@ -37,5 +29,15 @@ class StackOverflowSuite extends FunSuite with BeforeAndAfterAll {
     assert(instantiatable, "Can't instantiate a StackOverflow object")
   }
 
+  test("the median function works") {
+    import stackoverflow.Helpers.median_2
+    implicit def tuplelize(input: Array[Int]) = input map ((-1, _))
+
+    median_2(Array(1, 5, 6, 3, 9, 8, 4, 2, 0, 7)) shouldBe 4
+    median_2(Array(1, 5, 7, 3, 9, 4, 6)) shouldBe 5
+    median_2(Array(17, 13, 101)) shouldBe 17
+    median_2(Array(17, 13)) shouldBe 15
+    median_2(Array(7)) shouldBe 7
+  }
 
 }
