@@ -12,11 +12,10 @@ src_managed/
 project/boot/
 project/plugins/project/
 
-# Exercise specific
+# Exclude data files and Scala worksheets.
 Big Data Analysis with Scala and Spark/week1/wikipedia/src/main/resources/wikipedia/*.dat
-Big Data Analysis with Scala and Spark/week1/wikipedia/src/main/resources/stackoverflow/stackoverflow.csv
-Big Data Analysis with Scala and Spark/week4/timeusage/src/main/resources/timeusage/atussum.csv
-
+Big Data Analysis with Scala and Spark/**/*.csv
+Big Data Analysis with Scala and Spark/**/*.sc
 
 # Scala-IDE specific
 .scala_dependencies
