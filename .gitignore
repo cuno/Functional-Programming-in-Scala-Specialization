@@ -15,7 +15,7 @@ project/plugins/project/
 # Exclude data files and Scala worksheets.
 Big Data Analysis with Scala and Spark/week1/wikipedia/src/main/resources/wikipedia/*.dat
 Big Data Analysis with Scala and Spark/**/*.csv
-Big Data Analysis with Scala and Spark/**/*.sc
+**/*.sc
 
 # Scala-IDE specific
 .scala_dependencies
