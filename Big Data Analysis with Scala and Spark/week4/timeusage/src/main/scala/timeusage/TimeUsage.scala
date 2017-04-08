@@ -11,11 +11,18 @@ object TimeUsage {
   import org.apache.spark.sql.SparkSession
   import org.apache.spark.sql.functions._
 
+  val processorCount = Runtime.getRuntime().availableProcessors()
+  val masterString = if (processorCount > 1) s"local[$processorCount]" else "local"
+
+  val prefixPrimaryNeeds = Set("t01", "t03", "t11", "t1801", "t1803")
+  val prefixWorkingActivities = Set("t05", "t1805")
+  val prefixLeisureActivities = Set("t02", "t04", "t06", "t07", "t08", "t09", "t10", "t12", "t13", "t14", "t15", "t16", "t18")
+
   val spark: SparkSession =
     SparkSession
       .builder()
       .appName("Time Usage")
-      .config("spark.master", "local")
+      .config("spark.master", masterString)
       .getOrCreate()
 
   // For implicit conversions like converting RDDs to DataFrames
@@ -62,15 +69,16 @@ object TimeUsage {
     *         have type Double. None of the fields are nullable.
     * @param columnNames Column names of the DataFrame
     */
-  def dfSchema(columnNames: List[String]): StructType =
-    ???
+  def dfSchema(columnNames: List[String]): StructType = StructType(
+    StructField(columnNames head, StringType, nullable = false) ::
+      columnNames.tail.map(StructField(_, DoubleType, nullable = false))
+  )
 
 
   /** @return An RDD Row compatible with the schema produced by `dfSchema`
     * @param line Raw fields
     */
-  def row(line: List[String]): Row =
-    ???
+  def row(line: List[String]): Row = Row.fromSeq(line.head :: line.tail.map(_ toDouble))
 
   /** @return The initial data frame columns partitioned in three groups: primary needs (sleeping, eating, etc.),
     *         work and other (leisure activities)
@@ -88,7 +96,19 @@ object TimeUsage {
     *    “t10”, “t12”, “t13”, “t14”, “t15”, “t16” and “t18” (those which are not part of the previous groups only).
     */
   def classifiedColumns(columnNames: List[String]): (List[Column], List[Column], List[Column]) = {
-    ???
+    val c = columnNames toSet
+
+    def columnsWithPrefix(prefixes: Set[String]) = c filter { colName =>
+      prefixes find(colName startsWith _) nonEmpty
+    }
+
+    val p = columnsWithPrefix(prefixPrimaryNeeds)
+    val w = columnsWithPrefix(prefixWorkingActivities)
+    val l = columnsWithPrefix(prefixLeisureActivities)
+
+    implicit def toColumn(set: Set[String]) = (set toList) map (new Column(_))
+
+    (p, w, l -- p -- w)
   }
 
   /** @return a projection of the initial DataFrame such that all columns containing hours spent on primary needs
@@ -121,19 +141,14 @@ object TimeUsage {
     *
     * Note that the initial DataFrame contains time in ''minutes''. You have to convert it into ''hours''.
     */
-  def timeUsageSummary(
-    primaryNeedsColumns: List[Column],
-    workColumns: List[Column],
-    otherColumns: List[Column],
-    df: DataFrame
-  ): DataFrame = {
-    val workingStatusProjection: Column = ???
-    val sexProjection: Column = ???
-    val ageProjection: Column = ???
+  def timeUsageSummary(primaryNeedsColumns: List[Column], workColumns: List[Column], otherColumns: List[Column], df: DataFrame): DataFrame = {
+    val workingStatusProjection: Column = when($"telfs" between(1, 2), "working") otherwise "not working" as "working"
+    val sexProjection: Column = when($"tesex" === 1, "male") otherwise "female" as "sex"
+    val ageProjection: Column = when($"teage" between(15, 22), "young") when($"teage" between(23, 55), "active") otherwise "elder" as "age"
 
-    val primaryNeedsProjection: Column = ???
-    val workProjection: Column = ???
-    val otherProjection: Column = ???
+    val primaryNeedsProjection: Column = primaryNeedsColumns reduce (_ + _) divide 60 as "primaryNeeds"
+    val workProjection: Column = workColumns reduce (_ + _) divide 60 as "work"
+    val otherProjection: Column = otherColumns reduce (_ + _) divide 60 as "other"
     df
       .select(workingStatusProjection, sexProjection, ageProjection, primaryNeedsProjection, workProjection, otherProjection)
       .where($"telfs" <= 4) // Discard people who are not in labor force
@@ -157,7 +172,11 @@ object TimeUsage {
     * Finally, the resulting DataFrame should be sorted by working status, sex and age.
     */
   def timeUsageGrouped(summed: DataFrame): DataFrame = {
-    ???
+    summed groupBy('working, 'sex, 'age) agg(
+      round(avg('primaryNeeds), 1) as "primaryNeeds",
+      round(avg('work), 1) as "work",
+      round(avg('other), 1) as "other"
+    ) orderBy('working, 'sex, 'age)
   }
 
   /**
@@ -174,7 +193,12 @@ object TimeUsage {
     * @param viewName Name of the SQL view to use
     */
   def timeUsageGroupedSqlQuery(viewName: String): String =
-    ???
+    s"""SELECT
+          working, sex, age,
+          ROUND(AVG(primaryNeeds), 1) AS primaryNeeds,
+          ROUND(AVG(work), 1) AS work,
+          ROUND(AVG(other), 1) AS other
+        FROM $viewName GROUP BY 1,2,3 ORDER BY 1,2,3"""
 
   /**
     * @return A `Dataset[TimeUsageRow]` from the “untyped” `DataFrame`
@@ -183,8 +207,16 @@ object TimeUsage {
     * Hint: you should use the `getAs` method of `Row` to look up columns and
     * cast them at the same time.
     */
-  def timeUsageSummaryTyped(timeUsageSummaryDf: DataFrame): Dataset[TimeUsageRow] =
-    ???
+  def timeUsageSummaryTyped(timeUsageSummaryDf: DataFrame) = timeUsageSummaryDf map { row =>
+    TimeUsageRow(
+      row.getAs[String]("working"),
+      row.getAs[String]("sex"),
+      row.getAs[String]("age"),
+      row.getAs[Double]("primaryNeeds"),
+      row.getAs[Double]("work"),
+      row.getAs[Double]("other")
+    )
+  }
 
   /**
     * @return Same as `timeUsageGrouped`, but using the typed API when possible
@@ -198,8 +230,24 @@ object TimeUsage {
     * Hint: you should use the `groupByKey` and `typed.avg` methods.
     */
   def timeUsageGroupedTyped(summed: Dataset[TimeUsageRow]): Dataset[TimeUsageRow] = {
-    import org.apache.spark.sql.expressions.scalalang.typed
-    ???
+    import org.apache.spark.sql.expressions.scalalang.typed.avg
+
+    def round1d(d: Double) = Math.round(d * 10) / 10d
+
+    summed groupByKey (r => (r working, r sex, r age)) agg(
+      avg(_.primaryNeeds),
+      avg(_.work),
+      avg(_.other)
+    ) map {
+      case ((working, sex, age), primaryNeeds, work, other) =>
+        TimeUsageRow(
+          working,
+          sex,
+          age,
+          round1d(primaryNeeds),
+          round1d(work),
+          round1d(other))
+    } orderBy('working, 'sex, 'age)
   }
 }
 
