@@ -12,10 +12,7 @@ case class Posting(postingType: Int, id: Int, acceptedAnswer: Option[Int], paren
 /** The main class */
 object StackOverflow extends StackOverflow {
 
-  val processorCount = Runtime.getRuntime().availableProcessors()
-  val masterString = if (processorCount > 1) s"local[$processorCount]" else "local"
-
-  @transient lazy val conf: SparkConf = new SparkConf().setMaster(masterString).setAppName("StackOverflow")
+  @transient lazy val conf: SparkConf = new SparkConf().setMaster("local[*]").setAppName("StackOverflow")
   @transient lazy val sc: SparkContext = new SparkContext(conf)
 
   /** Main function */

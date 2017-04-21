@@ -11,9 +11,7 @@ object WikipediaRanking {
     "JavaScript", "Java", "PHP", "Python", "C#", "C++", "Ruby", "CSS",
     "Objective-C", "Perl", "Scala", "Haskell", "MATLAB", "Clojure", "Groovy")
 
-  val processorCount = Runtime.getRuntime().availableProcessors()
-  val masterString = if (processorCount > 1) s"local[$processorCount]" else "local"
-  val conf: SparkConf = new SparkConf().setAppName("Wikipedia").setMaster(masterString)
+  val conf: SparkConf = new SparkConf().setAppName("Wikipedia").setMaster("local[*]")
   val sc: SparkContext = new SparkContext(conf)
   // Hint: use a combination of `sc.textFile`, `WikipediaData.filePath` and `WikipediaData.parse`
   val wikiRdd: RDD[WikipediaArticle] = sc.textFile(WikipediaData.filePath).map(WikipediaData.parse(_))

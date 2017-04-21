@@ -11,9 +11,6 @@ object TimeUsage {
   import org.apache.spark.sql.SparkSession
   import org.apache.spark.sql.functions._
 
-  val processorCount = Runtime.getRuntime().availableProcessors()
-  val masterString = if (processorCount > 1) s"local[$processorCount]" else "local"
-
   val prefixPrimaryNeeds = Set("t01", "t03", "t11", "t1801", "t1803")
   val prefixWorkingActivities = Set("t05", "t1805")
   val prefixLeisureActivities = Set("t02", "t04", "t06", "t07", "t08", "t09", "t10", "t12", "t13", "t14", "t15", "t16", "t18")
@@ -22,7 +19,7 @@ object TimeUsage {
     SparkSession
       .builder()
       .appName("Time Usage")
-      .config("spark.master", masterString)
+      .config("spark.master", "local[*]")
       .getOrCreate()
 
   // For implicit conversions like converting RDDs to DataFrames
